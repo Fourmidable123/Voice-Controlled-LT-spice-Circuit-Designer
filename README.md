@@ -21,7 +21,13 @@ There's a need for an intuitive interface that allows users to design circuits t
 ![image](https://github.com/user-attachments/assets/43555aef-9797-4c04-bd11-954cebdde237)
 
 ## Methodology
-![image](https://github.com/user-attachments/assets/5ba53368-50c9-442d-8fac-d45c04420dea)
+- Voice Input: User speaks circuit description.
+- Speech Recognition: Google API converts speech to text.
+- AI Parsing: Gemini extracts components (e.g., "1kΩ → 1000").
+- Schematic Generation: Python auto-generates .asc file.
+- LT-spice Integration: Circuit opens for simulation.
+- GUI: Gradio interface for user interaction.
+![image](https://github.com/user-attachments/assets/9f96673e-634d-4f71-8099-0b2c0498eaa6)
 
 ## Conclusion
 - This project bridges the gap between natural language interaction and circuit simulation, making LTspice more accessible and efficient.
