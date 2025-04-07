@@ -1,4 +1,4 @@
-# Voice COntrolled LT-spice Circuit Designer
+# Voice Controlled LT-spice Circuit Designer
 
 ## Date Created - 2nd April, 2025
 
@@ -19,3 +19,14 @@ There's a need for an intuitive interface that allows users to design circuits t
 
 ## Research Gap Summary
 ![image](https://github.com/user-attachments/assets/43555aef-9797-4c04-bd11-954cebdde237)
+
+## Methodology
+![image](https://github.com/user-attachments/assets/5ba53368-50c9-442d-8fac-d45c04420dea)
+
+## Conclusion
+- This project bridges the gap between natural language interaction and circuit simulation, making LTspice more accessible and efficient.
+- By combining speech recognition, AI parsing, and automated schematic generation, it provides a hands-free, intuitive way to design and simulate circuits. Future enhancements could include:
+- Support for more complex circuits (op-amps, transistors).
+- Error correction in voice commands.
+- Integration with other simulation tools (e.g., MATLAB, Simulink).
+- Multi-language support for global accessibility.
