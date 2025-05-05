@@ -7,7 +7,7 @@ import time
 import subprocess
 
 # Configure Gemini API
-GEMINI_API_KEY = 'AIzaSyCUNr2gW0CARK1LwI20rzfAjcpuPzHyUc0'
+GEMINI_API_KEY = ''
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Initialize Gemini model
