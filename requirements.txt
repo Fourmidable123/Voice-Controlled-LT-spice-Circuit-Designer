@@ -1,0 +1,5 @@
+SpeechRecognition==3.8.1
+google-generativeai==0.3.2
+pydub==0.25.1
+gradio==4.19.2
+PyAudio==0.2.14 
