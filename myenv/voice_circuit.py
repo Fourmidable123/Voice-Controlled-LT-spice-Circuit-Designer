@@ -208,7 +208,7 @@ def generate_circuit_schematic(components):
         schematic.append("TEXT 80 344 Left 2 !.ac dec 100 1 100k")
         
     else:
-        # Default basic circuit
+        # Default basic circuit from Draft1.asc
         schematic.append("WIRE 208 128 64 128")
         schematic.append("WIRE 64 160 64 128")
         schematic.append("WIRE 208 240 208 208")
@@ -218,28 +218,13 @@ def generate_circuit_schematic(components):
         schematic.append("FLAG 208 320 0")
         schematic.append("SYMBOL voltage 64 144 R0")
         schematic.append("SYMATTR InstName V1")
-        v_type = components.get('V_type', 'DC')
-        if v_type == 'DC':
-            schematic.append(f"SYMATTR Value {v_type}({fmt(components.get('V', 5))})")
-        elif v_type == 'SINE':
-            schematic.append(f"SYMATTR Value {v_type}(0 {fmt(components.get('V', 5))} 1k)")
-        else:
-            schematic.append(f"SYMATTR Value {fmt(components.get('V', 5))}")
-        
+        schematic.append("SYMATTR Value 5")
         schematic.append("SYMBOL res 192 112 R0")
         schematic.append("SYMATTR InstName R1")
-        schematic.append(f"SYMATTR Value {fmt(components.get('R', 1))}")
-        
-        if 'C' in components:
-            schematic.append("SYMBOL cap 192 240 R0")
-            schematic.append("SYMATTR InstName C1")
-            schematic.append(f"SYMATTR Value {fmt(components.get('C', 2))}")
-            
-        if 'L' in components:
-            schematic.append("SYMBOL ind 224 144 R0")
-            schematic.append("SYMATTR InstName L1")
-            schematic.append(f"SYMATTR Value {fmt(components.get('L', 10e-3))}")
-        
+        schematic.append("SYMATTR Value 1")
+        schematic.append("SYMBOL cap 192 240 R0")
+        schematic.append("SYMATTR InstName C1")
+        schematic.append("SYMATTR Value 2")
         schematic.append("TEXT 24 344 Left 2 !.tran 10")
     
     return '\n'.join(schematic)
@@ -311,13 +296,17 @@ def parse_command_with_gemini_v2(command):
         # Set default frequency for low pass filter if not specified
         if components.get('topology') == 'low_pass_filter' and 'freq' not in components:
             components['freq'] = 25000  # Default to 25kHz as in reference
+            
+        # Check for basic circuit case and set topology explicitly
+        if "simple circuit" in command.lower() or "basic circuit" in command.lower():
+            components["topology"] = "basic_circuit"
         
         return components
     except Exception as e:
         print(f"Gemini parsing error: {e}")
         print(f"Raw response: {response.text}")  # Debug print
-        # Return default values
-        return {"V": 5, "V_type": "DC", "R": 1e3, "C": 1e-6, "topology": "basic_circuit"}
+        # Return default values for basic circuit
+        return {"V": 5, "R": 1, "C": 2, "topology": "basic_circuit"}
 
 def open_in_ltspice(circuit_path):
     """
@@ -440,9 +429,9 @@ with gr.Blocks() as demo:
         
         ### Supported Circuit Types:
         
-        1. **Basic Circuits**:
-           - "1k resistor and 10 microfarad capacitor"
-           - "5V DC source with 2.2k ohm resistor"
+        1. **Basic Circuit (Default)**:
+           - "Basic circuit with 5V, 1 ohm resistor and 2 uF capacitor"
+           - "Simple circuit with resistor and capacitor"
            
         2. **Filters**:
            - "RC low pass filter with 1 ohm resistor and 100 microfarad capacitor at 25 kilohertz"
@@ -454,6 +443,7 @@ with gr.Blocks() as demo:
         - Mention circuit topology for more accurate results
         - For more complex circuits, try to be specific about connections
         - You can specify frequency for filters (e.g., "at 25 kilohertz")
+        - If no specific circuit is recognized, the default Basic Circuit will be created
         """)
     
     # Check LTspice installation at startup
@@ -480,6 +470,7 @@ with gr.Blocks() as demo:
         with gr.Column():
             gr.Markdown("#### Filters")
             filter_examples = [
+                gr.Button("Basic Circuit"),
                 gr.Button("RC Low Pass Filter"),
                 gr.Button("RC High Pass Filter"),
                 gr.Button("RC Band Pass Filter")
@@ -521,6 +512,7 @@ with gr.Blocks() as demo:
     
     # Example circuit descriptions
     examples = {
+        "Basic Circuit": "simple circuit with 5V, 1 ohm resistor and 2 uF capacitor",
         "RC Low Pass Filter": "RC low pass filter with 1 ohm resistor and 100 microfarad capacitor at 25 kilohertz",
         "RC High Pass Filter": "RC high pass filter with 1 ohm resistor and 100 microfarad capacitor at 25 kilohertz",
         "RC Band Pass Filter": "RC band pass filter with 1 ohm resistors and 100 microfarad capacitors at 25 kilohertz",
