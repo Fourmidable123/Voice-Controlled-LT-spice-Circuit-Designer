@@ -13,7 +13,7 @@ with open("schematic_templates.json", "r") as f:
 
 # Configure Gemini API
 GEMINI_API_KEY = ''
-genai.configure(api_key='AIzaSyBaOcBLjW-R2jSk_1HulsYGHjiaYCGu_mU')
+genai.configure(api_key='')
 
 # Initialize Gemini model
 model = genai.GenerativeModel('gemini-2.0-flash')
