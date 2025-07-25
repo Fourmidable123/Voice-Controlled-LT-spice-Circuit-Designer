@@ -24,7 +24,8 @@ if not asc_files:
 else:
     print(f"Found {len(asc_files)} .asc files: {asc_files}")
 
-for filename in asc_files:
+for idx, filename in enumerate(asc_files, 1):
+    print(f"Processing file {idx} of {len(asc_files)}: {filename}")
     key = os.path.splitext(filename)[0].replace('-', '_').replace(' ', '_').lower()
     with open(os.path.join(asc_dir, filename), 'r') as f:
         netlist = f.read()
