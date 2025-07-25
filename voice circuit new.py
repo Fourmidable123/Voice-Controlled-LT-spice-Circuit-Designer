@@ -125,7 +125,15 @@ Return ONLY the dictionary for the command, with no additional text or formattin
         
         # Safely evaluate the dictionary string
         components = eval(response_text)
-        
+        # --- Normalization step ---
+        # Rename any variant to 'topology'
+        for key in ['circuit_type', 'circuit_topology']:
+            if key in components:
+                components['topology'] = components.pop(key)
+        # Flatten 'parameters' if present
+        if 'parameters' in components and isinstance(components['parameters'], dict):
+            components.update(components.pop('parameters'))
+        # --- End normalization ---
         # Validate the components
         if not isinstance(components, dict):
             raise ValueError("Response is not a dictionary")
