@@ -7,7 +7,7 @@ GEMINI_API_KEY = 'AIzaSyBaOcBLjW-R2jSk_1HulsYGHjiaYCGu_mU'
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-2.0-flash')  # or 'gemini-1.0-pro' if you have access
 
-asc_dir = './'  # Directory with .asc files
+asc_dir = './asc files'  # Directory with .asc files
 json_file = 'schematic_templates.json'
 
 # Load existing templates if the file exists
@@ -54,3 +54,6 @@ with open(json_file, 'w') as f:
     json.dump(templates, f, indent=2)
 
 print(f"Added {len(templates)} templates to {json_file} with Gemini-generated placeholders.") 
+
+import subprocess
+subprocess.run(['python', 'add_metadata_to_json.py']) 

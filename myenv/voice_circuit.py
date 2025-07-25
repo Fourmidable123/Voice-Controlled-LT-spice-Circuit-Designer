@@ -7,7 +7,7 @@ import time
 import subprocess
 
 # Configure Gemini API
-GEMINI_API_KEY = ''
+GEMINI_API_KEY = 'AIzaSyAiEuLgB0DrS4_SuY74VfC_LWwDJWH6QTY'
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Initialize Gemini model
@@ -68,13 +68,12 @@ def generate_circuit_schematic(components):
     
     # List of topologies handled by generate_complex_circuit_netlist
     complex_topologies = [
-        'common_emitter', 'boost_converter', 'astable_multivibrator',
-        'wien_oscillator', 'full_bridge_rectifier'
+        'common_emitter', 'boost_converter', 'buck_converter', 'astable_multivibrator',
+        'wien_oscillator', 'full_bridge_rectifier', 'four_switch_buck_boost_converter'
     ]
     
     # If this is a complex topology, use the dedicated function
-    if topology in complex_topologies:
-        return generate_complex_circuit_netlist(topology, components)
+   
     
     # Helper to format values as integers if possible
     def fmt(val):
@@ -206,7 +205,235 @@ def generate_circuit_schematic(components):
         schematic.append(f"SYMATTR Value {fmt(components.get('R2', 1))}")
         schematic.append("TEXT 80 320 Left 2 !.tran 0 0.1 0 0.0001")
         schematic.append("TEXT 80 344 Left 2 !.ac dec 100 1 100k")
-        
+    elif topology == 'buck_converter':
+        # Buck Converter circuit based on reference file
+        schematic.append("WIRE 96 -64 64 -64")
+        schematic.append("WIRE 208 -64 176 -64")
+        schematic.append("WIRE 64 48 64 -64")
+        schematic.append("WIRE 112 48 64 48")
+        schematic.append("WIRE 208 48 208 -64")
+        schematic.append("WIRE 208 48 160 48")
+        schematic.append("WIRE 96 96 0 96")
+        schematic.append("WIRE 272 96 176 96")
+        schematic.append("WIRE 352 96 272 96")
+        schematic.append("WIRE 496 96 432 96")
+        schematic.append("WIRE 624 96 496 96")
+        schematic.append("WIRE 0 128 0 96")
+        schematic.append("WIRE 272 144 272 96")
+        schematic.append("WIRE 496 144 496 96")
+        schematic.append("WIRE 624 144 624 96")
+        schematic.append("WIRE 0 240 0 208")
+        schematic.append("WIRE 272 240 272 208")
+        schematic.append("WIRE 272 240 0 240")
+        schematic.append("WIRE 496 240 496 208")
+        schematic.append("WIRE 496 240 272 240")
+        schematic.append("WIRE 624 240 624 224")
+        schematic.append("WIRE 624 240 496 240")
+        schematic.append("WIRE 0 272 0 240")
+        schematic.append("FLAG 0 272 0")
+        schematic.append("SYMBOL voltage 0 112 R0")
+        schematic.append("WINDOW 123 0 0 Left 0")
+        schematic.append("WINDOW 39 0 0 Left 0")
+        schematic.append("SYMATTR InstName V1")
+        schematic.append(f"SYMATTR Value {fmt(components.get('V_in', 100))}")
+        schematic.append("SYMBOL diode 288 208 R180")
+        schematic.append("WINDOW 0 24 64 Left 2")
+        schematic.append("WINDOW 3 24 0 Left 2")
+        schematic.append("SYMATTR InstName D1")
+        schematic.append("SYMBOL ind 336 112 R270")
+        schematic.append("WINDOW 0 32 56 VTop 2")
+        schematic.append("WINDOW 3 5 56 VBottom 2")
+        schematic.append("SYMATTR InstName L1")
+        schematic.append(f"SYMATTR Value {fmt(components.get('L', '1m'))}")
+        schematic.append("SYMBOL cap 480 144 R0")
+        schematic.append("SYMATTR InstName C1")
+        schematic.append(f"SYMATTR Value {fmt(components.get('C', '10µ'))}")
+        schematic.append("SYMBOL res 608 128 R0")
+        schematic.append("SYMATTR InstName R1")
+        schematic.append(f"SYMATTR Value {fmt(components.get('R', 10))}")
+        schematic.append("SYMBOL sw 192 96 R90")
+        schematic.append("SYMATTR InstName S1")
+        schematic.append("SYMATTR Value MOSFET")
+        schematic.append("SYMBOL voltage 80 -64 R270")
+        schematic.append("WINDOW 0 32 56 VTop 2")
+        schematic.append("WINDOW 3 -32 56 VBottom 2")
+        schematic.append("WINDOW 123 0 0 Left 0")
+        schematic.append("WINDOW 39 0 0 Left 0")
+        schematic.append("SYMATTR InstName V2")
+        duty_cycle = components.get('duty_cycle', 0.5)
+        freq = components.get('freq', 100000)
+        schematic.append(f"SYMATTR Value PULSE(0 {fmt(components.get('V_in', 100))} 0 1n 1n {{{duty_cycle}/{freq}}} {{{1}/{freq}}} 1Meg)")
+    elif topology == 'four_switch_buck_boost_converter':
+        # Four-Switch Buck-Boost Converter circuit
+        schematic.append("Version 4")
+        schematic.append("SHEET 1 1668 680")
+        schematic.append("WIRE -48 -496 -112 -496")
+        schematic.append("WIRE -112 -464 -112 -496")
+        schematic.append("WIRE -112 -368 -112 -384")
+        schematic.append("WIRE -48 -320 -48 -496")
+        schematic.append("WIRE -80 -304 -352 -304")
+        schematic.append("WIRE 96 -288 -16 -288")
+        schematic.append("WIRE 240 -288 144 -288")
+        schematic.append("WIRE 400 -288 240 -288")
+        schematic.append("WIRE -352 -272 -352 -304")
+        schematic.append("WIRE -80 -272 -256 -272")
+        schematic.append("WIRE -256 -240 -256 -272")
+        schematic.append("WIRE 240 -224 240 -288")
+        schematic.append("WIRE 288 -224 240 -224")
+        schematic.append("WIRE 400 -224 336 -224")
+        schematic.append("WIRE -48 -208 -48 -256")
+        schematic.append("WIRE -352 -144 -352 -192")
+        schematic.append("WIRE -256 -128 -256 -160")
+        schematic.append("WIRE -48 -112 -48 -128")
+        schematic.append("WIRE 112 48 0 48")
+        schematic.append("WIRE 176 48 112 48")
+        schematic.append("WIRE 432 48 176 48")
+        schematic.append("WIRE 560 48 432 48")
+        schematic.append("WIRE 1136 48 560 48")
+        schematic.append("WIRE 1264 48 1136 48")
+        schematic.append("WIRE 432 80 432 48")
+        schematic.append("WIRE 1136 80 1136 48")
+        schematic.append("WIRE 384 96 352 96")
+        schematic.append("WIRE 560 96 560 48")
+        schematic.append("WIRE 1088 96 1040 96")
+        schematic.append("WIRE 1264 96 1264 48")
+        schematic.append("WIRE 112 112 112 48")
+        schematic.append("WIRE 176 128 176 48")
+        schematic.append("WIRE 384 176 384 144")
+        schematic.append("WIRE 1088 176 1088 144")
+        schematic.append("WIRE 0 192 0 48")
+        schematic.append("WIRE 112 224 112 192")
+        schematic.append("WIRE 176 224 176 192")
+        schematic.append("WIRE 176 224 112 224")
+        schematic.append("WIRE 432 224 432 160")
+        schematic.append("WIRE 560 224 560 160")
+        schematic.append("WIRE 560 224 432 224")
+        schematic.append("WIRE 704 224 560 224")
+        schematic.append("WIRE 816 224 784 224")
+        schematic.append("WIRE 1136 224 1136 160")
+        schematic.append("WIRE 1136 224 896 224")
+        schematic.append("WIRE 1264 224 1264 160")
+        schematic.append("WIRE 1264 224 1136 224")
+        schematic.append("WIRE 176 256 176 224")
+        schematic.append("WIRE 432 256 432 224")
+        schematic.append("WIRE 1136 256 1136 224")
+        schematic.append("WIRE 112 272 112 224")
+        schematic.append("WIRE 384 272 336 272")
+        schematic.append("WIRE 560 272 560 224")
+        schematic.append("WIRE 1088 272 1040 272")
+        schematic.append("WIRE 1264 272 1264 224")
+        schematic.append("WIRE 384 352 384 320")
+        schematic.append("WIRE 1088 352 1088 320")
+        schematic.append("WIRE 0 384 0 272")
+        schematic.append("WIRE 112 384 112 352")
+        schematic.append("WIRE 112 384 0 384")
+        schematic.append("WIRE 176 384 176 320")
+        schematic.append("WIRE 176 384 112 384")
+        schematic.append("WIRE 432 384 432 336")
+        schematic.append("WIRE 432 384 176 384")
+        schematic.append("WIRE 560 384 560 336")
+        schematic.append("WIRE 560 384 432 384")
+        schematic.append("WIRE 1136 384 1136 336")
+        schematic.append("WIRE 1136 384 560 384")
+        schematic.append("WIRE 1264 384 1264 336")
+        schematic.append("WIRE 1264 384 1136 384")
+        schematic.append("WIRE 0 416 0 384")
+        schematic.append("FLAG 384 176 0")
+        schematic.append("FLAG 384 352 0")
+        schematic.append("FLAG 0 416 0")
+        schematic.append("FLAG -112 -368 0")
+        schematic.append("FLAG -48 -112 0")
+        schematic.append("FLAG -256 -128 0")
+        schematic.append("FLAG -352 -144 0")
+        schematic.append("FLAG 400 -288 Tp")
+        schematic.append("FLAG 400 -224 Tm")
+        schematic.append("FLAG 352 96 Tp")
+        schematic.append("FLAG 336 272 Tm")
+        schematic.append("FLAG 1088 176 0")
+        schematic.append("FLAG 1088 352 0")
+        schematic.append("FLAG 1040 272 Tp")
+        schematic.append("FLAG 1040 96 Tm")
+        schematic.append("SYMBOL voltage 0 176 R0")
+        schematic.append("WINDOW 123 0 0 Left 0")
+        schematic.append("WINDOW 39 0 0 Left 0")
+        schematic.append("SYMATTR InstName V1")
+        schematic.append(f"SYMATTR Value {fmt(components.get('V_in', 380))}")
+        schematic.append("SYMBOL cap 160 128 R0")
+        schematic.append("SYMATTR InstName C1")
+        schematic.append(f"SYMATTR Value {fmt(components.get('C1', '1m'))}")
+        schematic.append("SYMATTR SpiceLine Rser=1m Rpar=1Meg")
+        schematic.append("SYMBOL cap 160 256 R0")
+        schematic.append("SYMATTR InstName C2")
+        schematic.append(f"SYMATTR Value {fmt(components.get('C2', '1m'))}")
+        schematic.append("SYMATTR SpiceLine Rser=1m Rpar=1Meg")
+        schematic.append("SYMBOL res 800 208 R90")
+        schematic.append("WINDOW 0 0 56 VBottom 2")
+        schematic.append("WINDOW 3 32 56 VTop 2")
+        schematic.append("SYMATTR InstName R1")
+        schematic.append(f"SYMATTR Value {fmt(components.get('R1', 1))}")
+        schematic.append("SYMBOL ind 800 240 R270")
+        schematic.append("WINDOW 0 32 56 VTop 2")
+        schematic.append("WINDOW 3 5 56 VBottom 2")
+        schematic.append("SYMATTR InstName L1")
+        schematic.append(f"SYMATTR Value {fmt(components.get('L1', '10m'))}")
+        schematic.append("SYMBOL sw 432 176 M180")
+        schematic.append("SYMATTR InstName S1")
+        schematic.append("SYMBOL diode 576 160 R180")
+        schematic.append("WINDOW 0 24 64 Left 2")
+        schematic.append("WINDOW 3 24 0 Left 2")
+        schematic.append("SYMATTR InstName D1")
+        schematic.append("SYMBOL sw 432 352 M180")
+        schematic.append("SYMATTR InstName S2")
+        schematic.append("SYMBOL diode 576 336 R180")
+        schematic.append("WINDOW 0 24 64 Left 2")
+        schematic.append("WINDOW 3 24 0 Left 2")
+        schematic.append("SYMATTR InstName D2")
+        schematic.append("SYMBOL voltage -256 -256 R0")
+        schematic.append("WINDOW 123 0 0 Left 0")
+        schematic.append("WINDOW 39 0 0 Left 0")
+        schematic.append("SYMATTR InstName V3")
+        schematic.append(f"SYMATTR Value SINE(0 {fmt(components.get('V_out', 8))} {fmt(components.get('freq', 160))})")
+        schematic.append("SYMBOL Comparators\\LT1721 -48 -352 R0")
+        schematic.append("SYMATTR InstName U1")
+        schematic.append("SYMBOL voltage -112 -480 R0")
+        schematic.append("WINDOW 123 0 0 Left 0")
+        schematic.append("WINDOW 39 0 0 Left 0")
+        schematic.append("SYMATTR InstName V4")
+        schematic.append("SYMATTR Value 10")
+        schematic.append("SYMBOL voltage -48 -224 R0")
+        schematic.append("WINDOW 123 0 0 Left 0")
+        schematic.append("WINDOW 39 0 0 Left 0")
+        schematic.append("SYMATTR InstName V5")
+        schematic.append("SYMATTR Value -10")
+        schematic.append("SYMBOL Gain 304 -224 R0")
+        schematic.append("SYMATTR InstName U2")
+        schematic.append("SYMBOL voltage -352 -288 R0")
+        schematic.append("WINDOW 3 -224 268 Left 2")
+        schematic.append("WINDOW 123 0 0 Left 0")
+        schematic.append("WINDOW 39 0 0 Left 0")
+        schematic.append("SYMATTR Value PULSE(-10 10 0 0.03124m 0.03124m 0.00002m 0.0625m)")
+        schematic.append("SYMATTR InstName V2")
+        schematic.append("SYMBOL Gain 112 -288 R0")
+        schematic.append("SYMATTR SpiceLine G=100")
+        schematic.append("SYMATTR InstName U3")
+        schematic.append("SYMBOL res 96 256 R0")
+        schematic.append("SYMATTR InstName R2")
+        schematic.append(f"SYMATTR Value {fmt(components.get('R2', 1))}")
+        schematic.append("SYMBOL res 96 96 R0")
+        schematic.append("SYMATTR InstName R3")
+        schematic.append("SYMATTR Value 1")
+        schematic.append("SYMBOL sw 1136 176 M180")
+        schematic.append("SYMATTR InstName S3")
+        schematic.append("SYMBOL diode 1280 160 R180")
+        schematic.append("WINDOW 0 24 64 Left 2")
+        schematic.append("WINDOW 3 24 0 Left 2")
+        schematic.append("SYMATTR InstName D3")
+        schematic.append("SYMBOL sw 1136 352 M180")
+        schematic.append("SYMATTR InstName S4")
+        schematic.append("SYMBOL diode 1280 336 R180")
+        schematic.append("WINDOW 0 24 64 Left 2")
+        schematic.append("WINDOW 3 24 0 Left 2")
+        schematic.append("SYMATTR InstName D4")
     else:
         # Default basic circuit from Draft1.asc
         schematic.append("WIRE 208 128 64 128")
@@ -225,7 +452,7 @@ def generate_circuit_schematic(components):
         schematic.append("SYMBOL cap 192 240 R0")
         schematic.append("SYMATTR InstName C1")
         schematic.append("SYMATTR Value 2")
-        schematic.append("TEXT 24 344 Left 2 !.tran 10")
+        
     
     return '\n'.join(schematic)
 
@@ -249,15 +476,21 @@ def parse_command_with_gemini_v2(command):
       * low_pass_filter: RC Low Pass Filter (default R=1, C=100µF)
       * high_pass_filter: RC High Pass Filter
       * band_pass_filter: RC Band Pass Filter
+      * buck_converter: Buck Converter (default V_in=100V, L=1mH, C=10µF, R=10Ω, duty_cycle=0.5, freq=100kHz)
+      * four_switch_buck_boost_converter: Four-Switch Buck-Boost Converter
+(default V_in=100V, R1=1Ω, R2=1Ω, C1=1mF, C2=1mF, L1=10mH, V_out=8V, f=160Hz)
     - Include component specifications appropriate for each topology
     - For low_pass_filter: R, C, V (sine amplitude), freq (frequency in Hz)
     - For high_pass_filter: R, C, V
     - For band_pass_filter: R1, R2, C1, C2, V (sine amplitude), freq (frequency in Hz)
-    
+    - For buck_converter: V_in (input voltage), L (inductance), C (capacitance), R (load resistance), duty_cycle, freq (switching frequency)
+    - For four_switch_buck_boost_converter: V_in, R1, R2, C1, C2, L1, V_out, freq
     Examples:
     "RC low pass filter with 10 ohm resistor and 47 microfarad capacitor" -> {{"topology": "low_pass_filter", "R": 10, "C": 47e-6, "V": 1, "freq": 25000}}
     "RC high pass filter with 4.7k resistor and 0.1uF capacitor" -> {{"topology": "high_pass_filter", "R": 4.7e3, "C": 0.1e-6}}
     "RC band pass filter with 1 ohm resistors and 100uF capacitors" -> {{"topology": "band_pass_filter", "R1": 1, "R2": 1, "C1": 100e-6, "C2": 100e-6, "V": 1, "freq": 25000}}
+    "Buck converter with 24V input and 10 ohm load" -> {{"topology": "buck_converter", "V_in": 24, "L": 1e-3, "C": 10e-6, "R": 10, "duty_cycle": 0.5, "freq": 100000}}
+    "Four switch buck boost with 8 volt output" -> {{"topology": "four_switch_buck_boost_converter", "V_in": 100, "R1": 1, "R2": 1, "C1": 1e-3, "C2": 1e-3, "L1": 10e-3, "V_out": 8, "freq": 160}}
     Return ONLY the dictionary for the command, with no additional text or formatting.
     '''.format(command)
     
@@ -438,6 +671,10 @@ with gr.Blocks() as demo:
            - "RC high pass filter with 1 ohm resistor and 100 microfarad capacitor at 25 kilohertz"
            - "RC Band Pass Filter": "RC band pass filter with 1 ohm resistors and 100 microfarad capacitors at 25 kilohertz"
            
+        3. **Power Converters**:
+           - "Buck converter with 100V input, 1mH inductor, 10uF capacitor, and 10 ohm load"
+           - "Four-switch buck-boost converter with 100V input, 10mH inductance, 1mF capacitors, and 8V output"
+           
         ### Tips:
         - Specify component values with units (ohm, k, meg, uF, nF, pF, mH, uH)
         - Mention circuit topology for more accurate results
@@ -473,7 +710,9 @@ with gr.Blocks() as demo:
                 gr.Button("Basic Circuit"),
                 gr.Button("RC Low Pass Filter"),
                 gr.Button("RC High Pass Filter"),
-                gr.Button("RC Band Pass Filter")
+                gr.Button("RC Band Pass Filter"),
+                gr.Button("Buck Converter"),
+                gr.Button("Four-Switch Buck-Boost")
             ]
         
         
@@ -516,6 +755,8 @@ with gr.Blocks() as demo:
         "RC Low Pass Filter": "RC low pass filter with 1 ohm resistor and 100 microfarad capacitor at 25 kilohertz",
         "RC High Pass Filter": "RC high pass filter with 1 ohm resistor and 100 microfarad capacitor at 25 kilohertz",
         "RC Band Pass Filter": "RC band pass filter with 1 ohm resistors and 100 microfarad capacitors at 25 kilohertz",
+        "Buck Converter": "Buck converter with 100V input, 1mH inductor, 10uF capacitor, and 10 ohm load",
+        "Four-Switch Buck-Boost": "Four switch buck boost converter with 100V input, 10mH inductance, 1mF capacitors, and 8V output"
     }
     
     # Connect buttons
