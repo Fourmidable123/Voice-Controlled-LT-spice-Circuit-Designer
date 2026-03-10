@@ -1,0 +1,26 @@
+# Python cache/build
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local secrets and config
+.env
+*.env
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Generated project artifacts
+ltspice_circuits/
+*.wav
