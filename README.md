@@ -7,6 +7,7 @@ A Python app that converts voice or text circuit requests into LTspice `.asc` sc
 - Voice and text command input
 - Natural-language parsing with AI-assisted and fallback rule-based modes
 - Template-based LTspice schematic generation
+- Local LTspice template library indexing from downloaded `.asc` collections
 - Automatic LTspice launch support
 - Gradio UI with parse preview and recent file list
 
@@ -44,6 +45,12 @@ $env:GEMINI_API_KEY="your_api_key"
 $env:LTSPICE_PATH="C:\\Program Files\\ADI\\LTspice\\LTspice.exe"
 ```
 
+Optional template library override:
+
+```bash
+export LTSPICE_TEMPLATE_LIBRARY_DIR="/path/to/Circuits-LTSpice-master-2"
+```
+
 4. Run the app:
 
 ```bash
@@ -62,3 +69,4 @@ python myenv/voice_circuit.py
 
 - If `GEMINI_API_KEY` is not set, fallback parsing is used for common RC/filter commands.
 - If LTspice is not found automatically, set `LTSPICE_PATH` manually.
+- If a local template library is present, the UI will try to match your prompt to the closest downloaded `.asc` circuit before falling back to the built-in generator.

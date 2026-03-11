@@ -2,6 +2,7 @@ from vclt.config import logger
 
 
 def generate_complex_circuit_netlist(topology, components):
+    # No complex topologies are supported currently.
     logger.warning("Topology %s is not implemented yet. Falling back to basic_circuit.", topology)
     fallback = {
         "topology": "basic_circuit",
@@ -14,14 +15,7 @@ def generate_complex_circuit_netlist(topology, components):
 
 def generate_circuit_schematic(components):
     topology = components.get("topology", "basic_circuit")
-    complex_topologies = {
-        "common_emitter",
-        "boost_converter",
-        "astable_multivibrator",
-        "wien_oscillator",
-        "full_bridge_rectifier",
-    }
-    if topology in complex_topologies:
+    if topology not in {"basic_circuit", "low_pass_filter", "high_pass_filter", "band_pass_filter"}:
         return generate_complex_circuit_netlist(topology, components)
 
     def fmt(val):
@@ -70,8 +64,8 @@ def generate_circuit_schematic(components):
             "SYMBOL cap 384 112 R0",
             "SYMATTR InstName C1",
             f"SYMATTR Value {fmt(components.get('C', 100e-6))}",
-            "TEXT 72 328 Left 2 !.tran 0 0.1 0 0.0001",
-            "TEXT 72 352 Left 2 !.ac dec 100 1 100k",
+            "TEXT 72 328 Left 2 !.tran 0 0.2m",
+            "TEXT 72 352 Left 2 ;.ac dec 100 10 100k",
         ])
     elif topology == "high_pass_filter":
         schematic.extend([
@@ -106,7 +100,8 @@ def generate_circuit_schematic(components):
             "WINDOW 3 0 32 VBottom 2",
             "SYMATTR InstName C1",
             f"SYMATTR Value {fmt(components.get('C', 100e-6))}",
-            "TEXT 464 264 Left 2 !.ac dec 1000 10 100k",
+            "TEXT 464 264 Left 2 !.tran 0 0.2m",
+            "TEXT 464 288 Left 2 ;.ac dec 100 10 100k",
         ])
     elif topology == "band_pass_filter":
         schematic.extend([
@@ -152,8 +147,8 @@ def generate_circuit_schematic(components):
             "SYMBOL res 336 96 R0",
             "SYMATTR InstName R2",
             f"SYMATTR Value {fmt(components.get('R2', 1))}",
-            "TEXT 80 320 Left 2 !.tran 0 0.1 0 0.0001",
-            "TEXT 80 344 Left 2 !.ac dec 100 1 100k",
+            "TEXT 80 320 Left 2 !.tran 0 0.2m",
+            "TEXT 80 344 Left 2 ;.ac dec 100 10 100k",
         ])
     else:
         schematic.extend([
@@ -173,7 +168,8 @@ def generate_circuit_schematic(components):
             "SYMBOL cap 192 240 R0",
             "SYMATTR InstName C1",
             "SYMATTR Value 2",
-            "TEXT 24 344 Left 2 !.tran 10",
+            "TEXT 24 344 Left 2 !.tran 0 0.2m",
+            "TEXT 24 368 Left 2 ;.ac dec 100 10 100k",
         ])
 
-    return "\\n".join(schematic)
+    return "\n".join(schematic) + "\n"
