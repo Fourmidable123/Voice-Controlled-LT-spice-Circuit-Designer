@@ -13,6 +13,237 @@ from vclt.schematic import generate_circuit_schematic
 from vclt.template_db import get_template_library_status, match_template
 
 
+def _extract_template_overrides(query_text):
+    """Extract generic component overrides from natural text for template circuits.
+
+    Handles:
+    - Indexed keys: R1=10k, C2 100n, L1 47u, V1 12V
+    - Generic phrases: "1k resistors", "100n capacitors", "5V supply"
+    - Boost phrases: "12V input", "24V output"
+    """
+    text = (query_text or "").lower()
+    if not text:
+        return {}
+
+    # Normalize frequent spoken/unit variants to compact tokens.
+    replacements = {
+        "kilo ohm": "kohm",
+        "kilo-ohm": "kohm",
+        "mega ohm": "megohm",
+        "mega-ohm": "megohm",
+        "nano farad": "nanofarad",
+        "micro farad": "microfarad",
+        "pico farad": "picofarad",
+        "micro henry": "microhenry",
+        "milli henry": "millihenry",
+        "volts": "v",
+        "volt": "v",
+    }
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+
+    value_patterns = {
+        "R": r"[0-9]*\.?[0-9]+\s*(?:k|kohm|ohm|meg|megohm|m)?",
+        "C": r"[0-9]*\.?[0-9]+\s*(?:f|u|n|p|m|microfarad|nanofarad|picofarad)?",
+        "L": r"[0-9]*\.?[0-9]+\s*(?:h|u|m|microhenry|millihenry)?",
+        "V": r"[0-9]*\.?[0-9]+\s*(?:mv|v)?",
+    }
+
+    def _normalize_token(raw, kind):
+        if raw is None:
+            return None
+        token = raw.strip().lower().replace(" ", "")
+
+        token = token.replace("megohm", "meg")
+        token = token.replace("kohm", "k")
+        token = token.replace("ohm", "")
+        token = token.replace("nanofarad", "n")
+        token = token.replace("microfarad", "u")
+        token = token.replace("picofarad", "p")
+        token = token.replace("microhenry", "u")
+        token = token.replace("millihenry", "m")
+
+        if kind == "V" and token.endswith("v"):
+            token = token[:-1]
+
+        return token
+
+    overrides = {}
+    explicit_types = set()
+
+    # 1) Indexed component assignments (R1, C2, L1, V1).
+    # Require either a separator (=, :, is) or whitespace after the index to avoid
+    # misreading tokens like "C10n" as "C1 = 0n".
+    for kind, val_pat in value_patterns.items():
+        patterns = [
+            rf"\b{kind}\s*(\d+)\s*(?:=|is|:)\s*({val_pat})",
+            rf"\b{kind}\s*(\d+)\s+({val_pat})",
+        ]
+        for pattern in patterns:
+            for idx, raw in re.findall(pattern, text, flags=re.IGNORECASE):
+                key = f"{kind}{idx}"
+                norm = _normalize_token(raw, kind)
+                if norm:
+                    overrides[key.upper()] = norm
+                    explicit_types.add(kind)
+
+    # 1a) Non-indexed explicit assignments: R=4.7k, C=100n, V=5V
+    for kind, val_pat in value_patterns.items():
+        patterns = [
+            rf"\b{kind}\b\s*(?:=|is|:)\s*({val_pat})",
+            rf"\b{kind}\b\s+({val_pat})",
+        ]
+        for pattern in patterns:
+            m = re.search(pattern, text, flags=re.IGNORECASE)
+            if m:
+                norm = _normalize_token(m.group(1), kind)
+                if norm:
+                    overrides.setdefault(kind, norm)
+
+    # 1a-bis) Forms like C10 nanofarad, R4.7 kilo-ohm, L22 microhenry
+    unit_word_map = {
+        "R": r"(?:k|kohm|ohm|meg|megohm|m)",
+        "C": r"(?:f|u|n|p|m|microfarad|nanofarad|picofarad)",
+        "L": r"(?:h|u|m|microhenry|millihenry)",
+        "V": r"(?:mv|v)",
+    }
+    for kind, unit_pat in unit_word_map.items():
+        m = re.search(rf"\b{kind}\s*([0-9]*\.?[0-9]+)\s*({unit_pat})\b", text, flags=re.IGNORECASE)
+        if m and kind not in explicit_types:
+            norm = _normalize_token(f"{m.group(1)}{m.group(2)}", kind)
+            if norm:
+                overrides[kind] = norm
+
+    # 1b) Generic attached forms like C10n, R4.7k, L22u, V5.
+    for kind, val_pat in value_patterns.items():
+        m = re.search(rf"\b{kind}([0-9]*\.?[0-9]+(?:[a-zA-Z]+)?)\b", text, flags=re.IGNORECASE)
+        if m and kind not in explicit_types and kind not in overrides:
+            norm = _normalize_token(m.group(1), kind)
+            if norm:
+                overrides[kind] = norm
+
+    # 2) Generic component phrases apply by type (all R*, C*, L* unless explicitly overridden).
+    generic_phrases = [
+        ("R", r"([0-9]*\.?[0-9]+\s*(?:k|kohm|ohm|meg|megohm|m)?)\s*(?:resistor|resistors|resistance)\b"),
+        ("C", r"([0-9]*\.?[0-9]+\s*(?:f|u|n|p|m|microfarad|nanofarad|picofarad)?)\s*(?:capacitor|capacitors|capacitance)\b"),
+        ("L", r"([0-9]*\.?[0-9]+\s*(?:h|u|m|microhenry|millihenry)?)\s*(?:inductor|inductors|inductance)\b"),
+    ]
+    for kind, pattern in generic_phrases:
+        m = re.search(pattern, text, flags=re.IGNORECASE)
+        if m and kind not in explicit_types and kind not in overrides:
+            norm = _normalize_token(m.group(1), kind)
+            if norm:
+                overrides[kind] = norm
+
+    # 2b) RA/RB aliases (common in 555 descriptions)
+    ra = re.search(r"\bra\b\s*(?:=|is|:)?\s*([0-9]*\.?[0-9]+\s*(?:k|kohm|ohm|meg|megohm|m)?)", text, flags=re.IGNORECASE)
+    rb = re.search(r"\brb\b\s*(?:=|is|:)?\s*([0-9]*\.?[0-9]+\s*(?:k|kohm|ohm|meg|megohm|m)?)", text, flags=re.IGNORECASE)
+    if ra and "R1" not in overrides:
+        overrides["R1"] = _normalize_token(ra.group(1), "R")
+    if rb and "R2" not in overrides:
+        overrides["R2"] = _normalize_token(rb.group(1), "R")
+
+    # 3) Friendly aliases for 555 prompts.
+    if "RA" in overrides and "R1" not in overrides:
+        overrides["R1"] = overrides["RA"]
+    if "RB" in overrides and "R2" not in overrides:
+        overrides["R2"] = overrides["RB"]
+
+    # 4) Supply / input / output voltages.
+    supply = re.search(r"(?:\bvcc\b|\bsupply\b)\s*(?:=|is|:)?\s*([0-9]*\.?[0-9]+\s*(?:mv|v)?)", text, flags=re.IGNORECASE)
+    if supply:
+        v = _normalize_token(supply.group(1), "V")
+        overrides.setdefault("V", v)
+        overrides.setdefault("V1", v)
+
+    vin_match = re.search(r"([0-9]*\.?[0-9]+\s*(?:mv|v)?)\s*(?:input|in)\b", text, flags=re.IGNORECASE)
+    if not vin_match:
+        vin_match = re.search(r"(?:input|in)\s*(?:=|is|:)?\s*([0-9]*\.?[0-9]+\s*(?:mv|v)?)", text, flags=re.IGNORECASE)
+    if vin_match:
+        vin = _normalize_token(vin_match.group(1), "V")
+        overrides["VIN"] = vin
+        overrides["VD"] = vin
+        overrides.setdefault("V", vin)
+        overrides.setdefault("V1", vin)
+
+    vout_match = re.search(r"([0-9]*\.?[0-9]+\s*(?:mv|v)?)\s*(?:output|out)\b", text, flags=re.IGNORECASE)
+    if not vout_match:
+        vout_match = re.search(r"(?:output|out)\s*(?:=|is|:)?\s*([0-9]*\.?[0-9]+\s*(?:mv|v)?)", text, flags=re.IGNORECASE)
+    if vout_match:
+        overrides["VOUT_TARGET"] = _normalize_token(vout_match.group(1), "V")
+
+    return {k: v for k, v in overrides.items() if v}
+
+
+def _apply_template_overrides(template_content, overrides):
+    if not overrides:
+        return template_content
+
+    lines = template_content.splitlines()
+    out = []
+    current_inst = None
+
+    # If both Vin and desired Vout are provided, update duty parameter for boost templates:
+    # ideal boost relation Vout = Vin/(1-D) -> D = 1 - Vin/Vout
+    vin_raw = overrides.get("VIN")
+    vout_raw = overrides.get("VOUT_TARGET")
+    duty_override = None
+    try:
+        if vin_raw is not None and vout_raw is not None:
+            vin = float(vin_raw)
+            vout = float(vout_raw)
+            if vin > 0 and vout > vin:
+                d = 1.0 - (vin / vout)
+                # keep sane switching duty bounds
+                d = max(0.05, min(0.9, d))
+                duty_override = f"{d:.3f}".rstrip("0").rstrip(".")
+    except Exception:
+        duty_override = None
+
+    for line in lines:
+        inst_match = re.match(r"SYMATTR\s+InstName\s+(\S+)", line)
+        if inst_match:
+            current_inst = inst_match.group(1)
+            out.append(line)
+            continue
+
+        val_match = re.match(r"SYMATTR\s+Value\s+(.+)$", line)
+        if val_match and current_inst:
+            inst_upper = current_inst.upper()
+            replacement = None
+            current_value = val_match.group(1).strip()
+
+            if inst_upper in overrides:
+                replacement = overrides[inst_upper]
+            elif inst_upper == "VD" and "VIN" in overrides:
+                replacement = overrides["VIN"]
+            elif inst_upper.startswith("R") and "R" in overrides and re.match(r"^[0-9]*\.?[0-9]+(?:[a-zA-Z]+)?$", current_value):
+                replacement = overrides["R"]
+            elif inst_upper.startswith("C") and "C" in overrides:
+                replacement = overrides["C"]
+            elif inst_upper.startswith("L") and "L" in overrides and re.match(r"^[0-9]*\.?[0-9]+(?:[a-zA-Z]+)?$", current_value):
+                replacement = overrides["L"]
+            elif (
+                inst_upper.startswith("V")
+                and "V" in overrides
+                and re.match(r"^[0-9]*\.?[0-9]+(?:[a-zA-Z]+)?$", current_value)
+            ):
+                # Only replace simple DC values; do not overwrite expressions like PULSE(...)
+                replacement = overrides["V"]
+
+            if replacement is not None:
+                out.append(f"SYMATTR Value {replacement}")
+                continue
+
+        # Update duty parameter text directive if requested
+        if duty_override is not None and re.search(r"!\.param\s+D\s*=", line, flags=re.IGNORECASE):
+            line = re.sub(r"(?i)!\.param\s+D\s*=\s*[^\r\n]+", f"!.param D = {duty_override}", line)
+
+        out.append(line)
+
+    return "\n".join(out)
+
+
 def _normalize_transient_stop_time(value):
     text = (value or "").strip().lower()
     if not text:
@@ -236,9 +467,19 @@ def _save_schematic(components, analysis_mode="transient", transient_stop_time="
     )
 
 
-def _save_template_copy(template_path, analysis_mode="transient", transient_stop_time="0.2m"):
+def _save_template_copy(
+    template_path,
+    analysis_mode="transient",
+    transient_stop_time="0.2m",
+    query_text="",
+):
     with open(template_path, "r", encoding="utf-8", errors="ignore") as file_obj:
         template_content = file_obj.read()
+
+    overrides = _extract_template_overrides(query_text)
+    if overrides:
+        template_content = _apply_template_overrides(template_content, overrides)
+
     base_name = os.path.splitext(os.path.basename(template_path))[0]
     safe_name = re.sub(r"[^A-Za-z0-9]+", "_", base_name).strip("_").lower() or "template"
     return _save_content_to_circuit_dir(
@@ -257,10 +498,13 @@ def _try_create_from_template(query_text, analysis_mode="transient", transient_s
     if not match:
         return None
 
+    overrides = _extract_template_overrides(query_text)
+
     circuit_filename, circuit_path = _save_template_copy(
         match["path"],
         analysis_mode=analysis_mode,
         transient_stop_time=transient_stop_time,
+        query_text=query_text,
     )
     _, message = open_in_ltspice(circuit_path)
     status = (
@@ -268,6 +512,7 @@ def _try_create_from_template(query_text, analysis_mode="transient", transient_s
         f"Matched template: {match['name']}\n"
         f"Category: {match['category']}\n"
         f"Match score: {match['score']}\n"
+        f"Detected overrides: {overrides if overrides else 'none'}\n"
         f"Analysis mode: {analysis_mode}\n"
         f"Transient stop time: {_normalize_transient_stop_time(transient_stop_time)}\n"
         f"Source template: {match['relpath']}\n"

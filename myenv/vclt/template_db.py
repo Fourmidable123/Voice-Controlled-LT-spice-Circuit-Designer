@@ -13,9 +13,23 @@ from vclt.config import (
 )
 
 
+_CANONICAL_REPLACEMENTS = [
+    # Common speech-to-text / typing misspellings for astable prompts
+    (r"\basatble\b", "astable"),
+    (r"\bastbale\b", "astable"),
+    (r"\bastibl?e\b", "astable"),
+    (r"\bmultiviberator\b", "multivibrator"),
+    (r"\bmultivib?rator\b", "multivibrator"),
+    # Common shorthand heard in speech for this class of oscillator
+    (r"\bvibrator\b", "multivibrator"),
+]
+
+
 def _normalize_text(text):
     text = (text or "").lower()
     text = text.replace(".asc", "")
+    for pattern, replacement in _CANONICAL_REPLACEMENTS:
+        text = re.sub(pattern, replacement, text)
     text = re.sub(r"[_\-/]+", " ", text)
     text = re.sub(r"[^a-z0-9\s]", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -113,6 +127,37 @@ def match_template(query, entries=None, library_dir=None, min_score=0.55):
         return None
 
     query_tokens = _tokenize(query)
+
+    # Deterministic keyword routing for common intents that users phrase variably.
+    # This avoids misses when extra words (input/output numbers, fillers) dilute fuzzy score.
+    keyword_targets = [
+        ("boost converter", "boost converter"),
+        ("boost", "boost converter"),
+        ("buck converter", "buck converter"),
+        ("band pass", "band pass"),
+        ("low pass", "low pass"),
+        ("high pass", "high pass"),
+        ("window comparator", "window comparator"),
+        ("wien", "wien"),
+        ("astable", "astable"),
+        ("multivibrator", "multivibrator"),
+    ]
+    for trigger, target in keyword_targets:
+        if trigger in normalized_query:
+            candidates = []
+            for entry in template_entries:
+                hay = f"{entry.get('normalized_name', '')} {entry.get('normalized_relpath', '')}"
+                if target in hay:
+                    entry_tokens = set(entry.get("tokens", []))
+                    overlap = len(query_tokens & entry_tokens) / max(1, len(query_tokens)) if query_tokens else 0.0
+                    candidates.append((overlap, entry))
+            if candidates:
+                candidates.sort(key=lambda item: item[0], reverse=True)
+                best = dict(candidates[0][1])
+                # Keep explicit score for UI transparency.
+                best["score"] = round(max(0.65, candidates[0][0]), 3)
+                return best
+
     excluded_query_terms = []
     if TEMPLATE_CURATED_MODE:
         excluded_query_terms = [
